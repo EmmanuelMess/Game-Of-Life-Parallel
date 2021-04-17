@@ -152,8 +152,11 @@ void writeBoard(board_t board, const char *filename) {
 #define MIN_AREA 256
 
 typedef struct {
-	board_sub_t board_read_only;
+	board_sub_t section_to_read;
 	board_t board_write_only;
+	pthread_barrier_t *barrier_before;
+	pthread_barrier_t *barrier_after;
+	size_t cycles;
 } data_child_t;
 
 /**
@@ -161,80 +164,91 @@ typedef struct {
  */
 static void *process(void * data) {
 	data_child_t *dataChild = data;
-	board_sub_t subrogateBoard = dataChild->board_read_only;
-	board_t finalBoard = dataChild->board_write_only;
 
-	size_t columns = subrogateBoard.right - subrogateBoard.left;
-	size_t rows = subrogateBoard.bottom - subrogateBoard.top;
+	for (int c = 0; c < dataChild->cycles; ++c) {
+		pthread_barrier_wait(dataChild->barrier_before);
+		//main
+		pthread_barrier_wait(dataChild->barrier_after);
 
-	for (int i = 0; i < columns; ++i) {
-		for (int j = 0; j < rows; ++j) {
-			int indexToShift = 8;
-			int x = 0;
-			for (int k = -1; k <= 1; ++k) {
-				for (int l = -1; l <= 1; ++l) {
-					bool valueInBoard = board_sub_get(dataChild->board_read_only, i + k, j + l);
-					x |= (valueInBoard? 1:0) << indexToShift;
-					indexToShift--;
+		board_sub_t subrogateBoard = dataChild->section_to_read;
+		board_t finalBoard = dataChild->board_write_only;
+
+		size_t columns = subrogateBoard.right - subrogateBoard.left;
+		size_t rows = subrogateBoard.bottom - subrogateBoard.top;
+
+		for (int i = 0; i < columns; ++i) {
+			for (int j = 0; j < rows; ++j) {
+				int indexToShift = 8;
+				int x = 0;
+				for (int k = -1; k <= 1; ++k) {
+					for (int l = -1; l <= 1; ++l) {
+						bool valueInBoard = board_sub_get(subrogateBoard, i + k, j + l);
+						x |= (valueInBoard ? 1 : 0) << indexToShift;
+						indexToShift--;
+					}
 				}
+
+				size_t absolutePositionCol = subrogateBoard.left + i;
+				size_t absolutePositionRow = subrogateBoard.top + j;
+
+				board_set(finalBoard, absolutePositionCol, absolutePositionRow, table[x]);
 			}
-
-			size_t absolutePositionCol = dataChild->board_read_only.left + i;
-			size_t absolutePositionRow = dataChild->board_read_only.top + j;
-
-			board_set(finalBoard, absolutePositionCol, absolutePositionRow, table[x]);
 		}
 	}
-
-	free(dataChild);
 
 	pthread_exit(NULL);
 }
 
-static pthread_t iterate(board_sub_t subrogateBoard, board_t finalBoard) {
-	data_child_t *dataChild = malloc(sizeof(data_child_t));
-
-	*dataChild = (data_child_t) {
-		.board_read_only = subrogateBoard,
-		.board_write_only = finalBoard
-	};
-
-	pthread_t tid;
-
-	pthread_create(&tid, NULL, process, dataChild);
-
-	return tid;
+void update(data_child_t *arg, board_t readOnly, board_t writeOnlyBoard) {
+	arg->board_write_only = writeOnlyBoard;
+	arg->section_to_read.board = readOnly;
 }
 
 board_t *congwayGoL(board_t *board, unsigned int cycles, const int nuproc) {
-	board_t finalBoard = *board;
+	size_t len;
+	board_sub_t *subrogates = divide_into_subrogates(&len, *board, nuproc, MIN_AREA);
+	pthread_t *tid = calloc(len, sizeof(pthread_t));
+	data_child_t *args = calloc(len, sizeof(data_child_t));
 
-	for (int i = 0; i < cycles; ++i) {
-		size_t len;
-		board_sub_t *subrogates = divide_into_subrogates(&len, finalBoard, nuproc, MIN_AREA);
-		pthread_t *tid = calloc(len, sizeof(pthread_t));
+	pthread_barrier_t barrier_before;
+	pthread_barrier_t barrier_after;
+	pthread_barrier_init(&barrier_before, NULL, len + 1); // +1 por el main thread
+	pthread_barrier_init(&barrier_after, NULL, len + 1); // +1 por el main thread
 
-		board_t writeOnlyBoard = board_init(board->columns, board->rows);
+	for (int j = 0; j < len; ++j) {
+		args[j].barrier_before = &barrier_before;
+		args[j].barrier_after = &barrier_after;
+		args[j].section_to_read = subrogates[j];
+		args[j].cycles = cycles;
 
-		for (int j = 0; j < len; ++j) {
-			tid[j] = iterate(subrogates[j], writeOnlyBoard);
-		}
-
-		for (int j = 0; j < len; ++j) {
-			pthread_join(tid[j], NULL);
-		}
-
-		free(tid);
-		subrogates_destroy(subrogates);
-
-		if(i > 1) {
-			board_destroy(finalBoard);
-		}
-
-		finalBoard = writeOnlyBoard;
+		pthread_create(&(tid[j]), NULL, process, &(args[j]));
 	}
 
-	*board = finalBoard;
+	board_t writeOnlyBoard = board_init(board->columns, board->rows);
+	board_t readOnlyBoard = *board;
+
+	for (int i = 0; i < cycles; ++i) {
+		pthread_barrier_wait(&barrier_before);
+
+		for (int j = 0; j < len; ++j) {
+			update(&(args[j]), readOnlyBoard, writeOnlyBoard);
+		}
+
+		readOnlyBoard = writeOnlyBoard;
+		writeOnlyBoard = board_init(board->columns, board->rows);
+
+		pthread_barrier_wait(&barrier_after);
+	}
+
+	for (int j = 0; j < len; ++j) {
+		pthread_join(tid[j], NULL);
+	}
+
+	*board = readOnlyBoard;
+
+	free(args);
+	free(tid);
+	subrogates_destroy(subrogates);
 
 	return board;
 }
