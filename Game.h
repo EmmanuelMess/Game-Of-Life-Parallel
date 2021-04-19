@@ -5,7 +5,11 @@
 /******************************************************************************/
 /* Representamos las células vivas como 'O' y las muertas como 'X' */
 
-enum State {ALIVE, DEAD};
+enum State {
+	UNSET = 0,
+	ALIVE = 1,
+	DEAD = 2
+};
 /******************************************************************************/
 struct _game {
 	board_t board;

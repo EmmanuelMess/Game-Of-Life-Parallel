@@ -10,10 +10,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	game_t * game = loadGame(argv[1]);
-	board_t lastGame = game->board;
-	board_t *lastGamePointer = &lastGame;
 
-	lastGamePointer = congwayGoL(lastGamePointer, game->cycles, get_nprocs());
+	board_t *lastGamePointer = congwayGoL(&(game->board), game->cycles, get_nprocs());
 
 	char * finalStateFilename = malloc((strlen(argv[1]) + 2) * sizeof(char ));
 	strcpy(finalStateFilename, argv[1]);
@@ -23,9 +21,9 @@ int main(int argc, char *argv[]) {
 
 	free(finalStateFilename);
 
-	board_destroy(game->board);
-	free(game);
 	board_destroy(*lastGamePointer);
+	free(lastGamePointer);
+	free(game);
 
 	return 0;
 }
