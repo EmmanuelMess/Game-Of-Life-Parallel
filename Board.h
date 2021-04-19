@@ -5,23 +5,18 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 
-/******************************************************************************/
-/* Definición de la estructura de datos del tablero */
-
 struct _board {
 	size_t columns, rows;
 	atomic_int_fast8_t * data;
 };
 typedef struct _board board_t;
 
-struct _board_subrogate {
+struct _board_subdivider {
 	board_t board;
 	size_t top, left;
 	size_t bottom, right;
 };
-typedef struct _board_subrogate board_sub_t;
-/******************************************************************************/
-/******************************************************************************/
+typedef struct _board_subdivider board_subdivider_t;
 
 /* Funciones sobre el tablero */
 
@@ -31,19 +26,36 @@ board_t board_init(size_t col, size_t row);
 /* Destroy board */
 void board_destroy(board_t board);
 
-board_sub_t subrogate_board_init(board_t source, size_t left, size_t top, size_t right, size_t bottom);
+/**
+ * Crea las subdivisiones, estas usan una tabla subyacente para
+ * indexar relativamente
+ */
+board_subdivider_t subdivider_board_init(board_t source, size_t left, size_t top, size_t right, size_t bottom);
 
-void subrogates_destroy(board_sub_t * subrogates);
+/**
+ * Destruye las subdivisiones
+ */
+void subdivider_destroy(board_subdivider_t * subrogates);
 
-board_sub_t *divide_into_subrogates(size_t * len, board_t board, size_t nuproc, size_t minArea);
+/**
+ * Subdivide, guarda en len la cantidad de subdivisiones
+ */
+board_subdivider_t *subdivide(size_t * len, board_t board, size_t nuproc, size_t minArea);
 
-bool subrogate_board_is_set(const board_sub_t board, int col, int row);
+/**
+ * Devuelve true si la posicion relativa en la tabla esta determinada
+ */
+bool subdivider_board_is_set(board_subdivider_t board, int col, int row);
 
-void board_subrogate_destroy(board_sub_t sub_board);
+/**
+ * Devuelve la posicion relativa en la tabla
+ */
+enum State board_subdivider_get(board_subdivider_t sub_board, int col, int row);
 
-enum State board_sub_get(board_sub_t sub_board, int col, int row);
-
-void board_sub_show(board_sub_t board);
+/**
+ * Muestra la subtabla
+ */
+void board_sub_show(board_subdivider_t board);
 
 /* Leer el tablero en una posición (col, row) */
 enum State board_get(board_t board, unsigned int col, unsigned int row);

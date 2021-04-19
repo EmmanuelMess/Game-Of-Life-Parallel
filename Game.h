@@ -2,22 +2,21 @@
 #define GAME_TYPES
 #include "Board.h"
 
-/******************************************************************************/
-/* Representamos las células vivas como 'O' y las muertas como 'X' */
-
 enum State {
 	UNSET = 0,
 	ALIVE = 1,
 	DEAD = 2
 };
-/******************************************************************************/
+
+/**
+ * Mantiene el juego
+ */
 struct _game {
 	board_t board;
 	unsigned int cycles;
 };
 
 typedef struct _game game_t;
-/******************************************************************************/
 
 /* Cargamos el juego desde un archivo */
 game_t *loadGame(const char *filename);

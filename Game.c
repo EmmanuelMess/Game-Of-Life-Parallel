@@ -148,7 +148,7 @@ void writeBoard(board_t board, const char *filename) {
 	fclose(file);
 }
 
-static void processCenter(board_t finalBoard, board_sub_t subrogateBoard) {
+static void processCenter(board_t finalBoard, board_subdivider_t subrogateBoard) {
 	size_t columns = subrogateBoard.right - subrogateBoard.left;
 	size_t rows = subrogateBoard.bottom - subrogateBoard.top;
 
@@ -158,7 +158,7 @@ static void processCenter(board_t finalBoard, board_sub_t subrogateBoard) {
 			int x = 0;
 			for (int k = -1; k <= 1; ++k) {
 				for (int l = -1; l <= 1; ++l) {
-					enum State valueInBoard = board_sub_get(subrogateBoard, i + k, j + l);
+					enum State valueInBoard = board_subdivider_get(subrogateBoard, i + k, j + l);
 					x |= (valueInBoard == ALIVE? 1 : 0) << indexToShift;
 					indexToShift--;
 				}
@@ -172,12 +172,12 @@ static void processCenter(board_t finalBoard, board_sub_t subrogateBoard) {
 	}
 }
 
-static void processLeft(board_t finalBoard, board_sub_t subrogateBoard, size_t row) {
+static void processLeft(board_t finalBoard, board_subdivider_t subrogateBoard, size_t row) {
 	int indexToShift = 8;
 	int x = 0;
 	for (int k = -1; k <= 1; ++k) {
 		for (int l = -1; l <= 1; ++l) {
-			enum State valueInBoard = board_sub_get(subrogateBoard, 0 + k, row + l);
+			enum State valueInBoard = board_subdivider_get(subrogateBoard, 0 + k, row + l);
 			x |= (valueInBoard == ALIVE? 1 : 0) << indexToShift;
 			indexToShift--;
 		}
@@ -189,7 +189,7 @@ static void processLeft(board_t finalBoard, board_sub_t subrogateBoard, size_t r
 	board_set(finalBoard, absolutePositionCol, absolutePositionRow, table[x]);
 }
 
-static size_t processLeftBorderBlocking(board_t finalBoard, board_sub_t subrogateBoard, size_t startPos, bool blocking) {
+static size_t processLeftBorderBlocking(board_t finalBoard, board_subdivider_t subrogateBoard, size_t startPos, bool blocking) {
 	size_t rows = subrogateBoard.bottom - subrogateBoard.top;
 
 	for (int j = startPos; j < rows; ++j) {
@@ -197,14 +197,14 @@ static size_t processLeftBorderBlocking(board_t finalBoard, board_sub_t subrogat
 			//Esto impide que se calculen valores sobre celdas que no estan computadas
 			bool blocked = true;
 			while (blocked) {
-				blocked = !subrogate_board_is_set(subrogateBoard, -1, j - 1)
-				          || !subrogate_board_is_set(subrogateBoard, -1, j)
-				          || !subrogate_board_is_set(subrogateBoard, -1, j + 1);
+				blocked = !subdivider_board_is_set(subrogateBoard, -1, j - 1)
+				          || !subdivider_board_is_set(subrogateBoard, -1, j)
+				          || !subdivider_board_is_set(subrogateBoard, -1, j + 1);
 			}
 		} else {
-			if(!subrogate_board_is_set(subrogateBoard, -1, j - 1)
-			   || !subrogate_board_is_set(subrogateBoard, -1, j)
-			   || !subrogate_board_is_set(subrogateBoard, -1, j + 1)) {
+			if(!subdivider_board_is_set(subrogateBoard, -1, j - 1)
+			   || !subdivider_board_is_set(subrogateBoard, -1, j)
+			   || !subdivider_board_is_set(subrogateBoard, -1, j + 1)) {
 				return j;
 			}
 		}
@@ -214,14 +214,14 @@ static size_t processLeftBorderBlocking(board_t finalBoard, board_sub_t subrogat
 	return rows;
 }
 
-static void processRight(board_t finalBoard, board_sub_t subrogateBoard, size_t row) {
+static void processRight(board_t finalBoard, board_subdivider_t subrogateBoard, size_t row) {
 	size_t columns = subrogateBoard.right - subrogateBoard.left;
 
 	int indexToShift = 8;
 	int x = 0;
 	for (int k = -1; k <= 1; ++k) {
 		for (int l = -1; l <= 1; ++l) {
-			enum State valueInBoard = board_sub_get(subrogateBoard, columns - 1 + k, row + l);
+			enum State valueInBoard = board_subdivider_get(subrogateBoard, columns - 1 + k, row + l);
 			x |= (valueInBoard == ALIVE? 1 : 0) << indexToShift;
 			indexToShift--;
 		}
@@ -233,7 +233,7 @@ static void processRight(board_t finalBoard, board_sub_t subrogateBoard, size_t 
 	board_set(finalBoard, absolutePositionCol, absolutePositionRow, table[x]);
 }
 
-static size_t processRightBorderBlocking(board_t finalBoard, board_sub_t subrogateBoard, size_t startPos, bool blocking) {
+static size_t processRightBorderBlocking(board_t finalBoard, board_subdivider_t subrogateBoard, size_t startPos, bool blocking) {
 	size_t rows = subrogateBoard.bottom - subrogateBoard.top;
 	size_t columns = subrogateBoard.right - subrogateBoard.left;
 
@@ -242,14 +242,14 @@ static size_t processRightBorderBlocking(board_t finalBoard, board_sub_t subroga
 			//Esto impide que se calculen valores sobre celdas que no estan computadas
 			bool blocked = true;
 			while (blocked) {
-				blocked = !subrogate_board_is_set(subrogateBoard, columns, j - 1)
-				          || !subrogate_board_is_set(subrogateBoard, columns, j)
-				          || !subrogate_board_is_set(subrogateBoard, columns, j + 1);
+				blocked = !subdivider_board_is_set(subrogateBoard, columns, j - 1)
+				          || !subdivider_board_is_set(subrogateBoard, columns, j)
+				          || !subdivider_board_is_set(subrogateBoard, columns, j + 1);
 			}
 		} else {
-			if(!subrogate_board_is_set(subrogateBoard, columns, j - 1)
-			   || !subrogate_board_is_set(subrogateBoard, columns, j)
-			   || !subrogate_board_is_set(subrogateBoard, columns, j + 1)) {
+			if(!subdivider_board_is_set(subrogateBoard, columns, j - 1)
+			   || !subdivider_board_is_set(subrogateBoard, columns, j)
+			   || !subdivider_board_is_set(subrogateBoard, columns, j + 1)) {
 				return j;
 			}
 		}
@@ -263,7 +263,7 @@ static size_t processRightBorderBlocking(board_t finalBoard, board_sub_t subroga
 #define MIN_AREA 256
 
 typedef struct {
-	board_sub_t section_to_read;
+	board_subdivider_t section_to_read;
 	board_t board_write_only;
 	size_t cycles;
 	list_t *list;
@@ -280,7 +280,7 @@ static void *process(void * data) {
 		dataChild->board_write_only = list_get(list, c + 1);
 		dataChild->section_to_read.board = list_get(list, c);
 
-		board_sub_t subrogateBoard = dataChild->section_to_read;
+		board_subdivider_t subrogateBoard = dataChild->section_to_read;
 		board_t finalBoard = dataChild->board_write_only;
 		size_t leftLastProcessed = processLeftBorderBlocking(finalBoard, subrogateBoard, 0, false);
 		size_t rightLastProcessed = processRightBorderBlocking(finalBoard, subrogateBoard, 0, false);
@@ -298,7 +298,7 @@ static void *process(void * data) {
 
 board_t *congwayGoL(board_t *board, unsigned int cycles, const int nuproc) {
 	size_t len;
-	board_sub_t *subrogates = divide_into_subrogates(&len, *board, nuproc, MIN_AREA);
+	board_subdivider_t *subrogates = subdivide(&len, *board, nuproc, MIN_AREA);
 	pthread_t *tid = calloc(len, sizeof(pthread_t));
 	data_child_t *args = calloc(len, sizeof(data_child_t));
 	list_t *list = malloc(sizeof(list_t));
@@ -324,7 +324,7 @@ board_t *congwayGoL(board_t *board, unsigned int cycles, const int nuproc) {
 	free(list);
 	free(args);
 	free(tid);
-	subrogates_destroy(subrogates);
+	subdivider_destroy(subrogates);
 
 	return finalBoard;
 }
