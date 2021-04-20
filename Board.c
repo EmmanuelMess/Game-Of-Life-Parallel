@@ -113,8 +113,7 @@ board_subdivider_t *subdivide(size_t * len, board_t board, size_t nuproc, size_t
 	size_t columns = board.columns;
 	size_t rows = board.rows;
 	size_t nareas = (columns * rows) / minArea;
-	size_t ncolumns = columns / 8; //Evita que las columnas sean de menos de una linea de cache estandar (64 bytes)
-	size_t nthreads = MIN(nareas, MIN(ncolumns, nuproc));
+	size_t nthreads = MIN(nareas, nuproc);
 
 	board_subdivider_t *subboards;
 
@@ -130,13 +129,13 @@ board_subdivider_t *subdivide(size_t * len, board_t board, size_t nuproc, size_t
 	subboards = calloc(nthreads, sizeof(board_subdivider_t));
 	*len = nthreads;
 
-	size_t colPerThread = columns / nthreads;
+	size_t rowPerThread = rows / nthreads;
 
 	for (int i = 0; i < nthreads - 1; ++i) {
-		subboards[i] = subdivider_board_init(board, i * colPerThread, 0, (i + 1) * colPerThread, rows);
+		subboards[i] = subdivider_board_init(board, 0, i * rowPerThread, columns, (i + 1) * rowPerThread);
 	}
 
-	subboards[nthreads - 1] = subdivider_board_init(board, (nthreads - 1) * colPerThread, 0, columns, rows);
+	subboards[nthreads - 1] = subdivider_board_init(board, 0, (nthreads - 1) * rowPerThread, columns, rows);
 
 	return subboards;
 }
